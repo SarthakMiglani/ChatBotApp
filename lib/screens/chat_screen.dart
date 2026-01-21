@@ -5,7 +5,9 @@ import '../services/local_storage_service.dart';
 import '../widgets/chat_bubble.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({Key? key}) : super(key: key);
+  final int sessionId; 
+
+  const ChatScreen({Key? key, required this.sessionId}) : super(key: key);
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -27,7 +29,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _loadMessages() async {
-    final messages = await _storageService.getMessages();
+    
+    final messages = await _storageService.getMessages(widget.sessionId);
     setState(() {
       _messages = messages;
     });
@@ -36,9 +39,20 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
+    
+    final inputText = _controller.text;
+
+    
+    if (_messages.isEmpty) {
+      await _storageService.updateSessionTitle(
+        widget.sessionId, 
+        inputText.length > 30 ? '${inputText.substring(0, 30)}...' : inputText
+      );
+    }
 
     final userMessage = ChatMessage(
-      text: _controller.text,
+      sessionId: widget.sessionId, 
+      text: inputText,
       isUser: true,
       timestamp: DateTime.now(),
     );
@@ -55,6 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final response = await _geminiService.sendMessage(userMessage.text);
     
     final botMessage = ChatMessage(
+      sessionId: widget.sessionId, 
       text: response,
       isUser: false,
       timestamp: DateTime.now(),
@@ -69,37 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
   }
 
-  Future<void> _clearHistory() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear Chat History'),
-        content: const Text('Are you sure you want to delete all messages? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Clear', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
 
-    if (confirmed == true) {
-      await _storageService.clearMessages();
-      setState(() {
-        _messages.clear();
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chat history cleared')),
-        );
-      }
-    }
-  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -120,13 +105,6 @@ class _ChatScreenState extends State<ChatScreen> {
         title: const Text('AI Chatbot'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _clearHistory,
-            tooltip: 'Clear chat history',
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -134,7 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: _messages.isEmpty
                 ? Center(
                     child: Text(
-                      'Start a conversation with AI',
+                      'Say hello!',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 16,

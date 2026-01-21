@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'screens/chat_screen.dart';
+import 'screens/session_list_screen.dart'; 
 
 Future<void> main() async {
   await dotenv.load();
@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
       ),
-      home: const ChatScreen(),
+      home: const SessionListScreen(), 
     );
   }
 }
