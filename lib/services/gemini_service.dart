@@ -1,16 +1,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiService {
-  static const String apiKey = 'REMOVED_API_KEY';
-  static const String apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  final String apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+  final String apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
   Future<String> sendMessage(String message) async {
+    if (apiKey.isEmpty) {
+      return 'Error: API key not found';
+    }
+
     try {
-      final url = '$apiUrl?key=$apiKey';
-      
       final response = await http.post(
-        Uri.parse(url),
+        Uri.parse('$apiUrl?key=$apiKey'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'contents': [
@@ -25,28 +28,12 @@ class GeminiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
-        if (data['candidates'] != null && 
-            data['candidates'].isNotEmpty &&
-            data['candidates'][0]['content'] != null &&
-            data['candidates'][0]['content']['parts'] != null &&
-            data['candidates'][0]['content']['parts'].isNotEmpty) {
-          return data['candidates'][0]['content']['parts'][0]['text'];
-        } else {
-          return 'Error: Invalid response format from AI';
-        }
-      } else if (response.statusCode == 400) {
-        final errorData = jsonDecode(response.body);
-        return 'Error: ${errorData['error']['message'] ?? 'Bad request'}';
-      } else if (response.statusCode == 429) {
-        return 'Error: Rate limit exceeded. Please try again later';
-      } else if (response.statusCode == 404) {
-        return 'Error: Model not found. Check API endpoint';
+        return data['candidates'][0]['content']['parts'][0]['text'];
       } else {
-        return 'Error: Server returned ${response.statusCode}';
+        return 'Error: ${response.body}';
       }
     } catch (e) {
-      return 'Error: ${e.toString()}';
+      return 'Error: $e';
     }
   }
 }
